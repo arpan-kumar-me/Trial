@@ -2,13 +2,29 @@ import math
 import re
 from pathlib import Path
 
-try:
-    from moviepy import CompositeVideoClip, TextClip, VideoFileClip
-except ImportError:
-    from moviepy.editor import CompositeVideoClip, TextClip, VideoFileClip
+from moviepy import CompositeVideoClip, TextClip, VideoFileClip
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+# fonts-dejavu-core (installed in the GitHub Actions workflow) provides these.
+# Add more candidates if you run this locally on macOS/Windows.
+FONT_CANDIDATES = [
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+    "C:\\Windows\\Fonts\\arialbd.ttf",
+]
+
+
+def _resolve_font() -> str:
+    for candidate in FONT_CANDIDATES:
+        if Path(candidate).exists():
+            return candidate
+    raise FileNotFoundError(
+        "No usable caption font was found. Install 'fonts-dejavu-core' (Linux) or add the "
+        "correct font path to FONT_CANDIDATES in caption_burner.py."
+    )
 
 
 def _clip_duration(clip: object) -> float:
@@ -66,29 +82,18 @@ def _caption_units(text_script: str) -> list[str]:
 def _make_text_clip(text: str, video_width: int):
     clip_width = max(320, int(video_width * 0.86))
     font_size = max(34, min(74, int(video_width * 0.052)))
-    try:
-        return TextClip(
-            text=text,
-            font_size=font_size,
-            color="white",
-            stroke_color="black",
-            stroke_width=3,
-            method="caption",
-            size=(clip_width, None),
-            margin=(20, 12),
-            text_align="center",
-        )
-    except TypeError:
-        return TextClip(
-            txt=text,
-            fontsize=font_size,
-            color="white",
-            stroke_color="black",
-            stroke_width=3,
-            method="caption",
-            size=(clip_width, None),
-            align="center",
-        )
+    return TextClip(
+        font=_resolve_font(),
+        text=text,
+        font_size=font_size,
+        color="white",
+        stroke_color="black",
+        stroke_width=3,
+        method="caption",
+        size=(clip_width, None),
+        margin=(20, 12),
+        text_align="center",
+    )
 
 
 def burn_captions(video_path: str, text_script: str, output_path: str) -> str:
